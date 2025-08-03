@@ -61,164 +61,174 @@
 //  friends.push('Daniel') ///Add to the end
 // // const newFriends = friends.unshift('Daniel') /// Add to the beginning
 
-////DOM ELEMENTS SELECTION
-const taskInput = document.getElementById('task-input')
-const addBtn = document.getElementById('add-btn')
-const taskList = document.getElementById('task-list')
-const emptyState = document.getElementById('empty-state')
-const totalTaskElement = document.getElementById('total-tasks')
-const completedTask = document.getElementById('completed-tasks')
-const pendingTask = document.getElementById('pending-tasks')
-const filterButtons = document.querySelectorAll('.filter-btn')
+//PLEASE NOTE THAT I CHOOSE TO USE SEMI-COLUMN TO MARK THE END OF EACH LINE TO AVOID CONFUSING MYSELF 
+
+//// DOM ELEMENTS
+const taskInput = document.getElementById('task-input');
+const addBtn = document.getElementById('add-btn');
+const taskList = document.getElementById('task-list');
+const emptyState = document.getElementById('empty-state');
+const totalTaskElement = document.getElementById('total-tasks');
+const completedTaskElement = document.getElementById('completed-tasks');
+const pendingTaskElement = document.getElementById('pending-tasks');
+const filterButtons = document.querySelectorAll('.filter-btn');
+
+//// TASK DATA STORAGE
+let tasks = [];
+let taskIdCounter = 1;
+let currentFilter = 'all';
 
 
-////TASK DATA  STORAGE
-let tasks = []
-let taskIdCounter = 1
-let currentFilter = 'all'
+// ===================== FUNCTIONS =====================
+
+// >>> Add Task Function <<<
+function addTask() {
+  const taskText = taskInput.value.trim();
+  if (taskText === '') return alert('Please enter a task');
+
+  const task = {
+    id: taskIdCounter++,
+    text: taskText,
+    completed: false,
+    createdAt: new Date()
+  };
+
+  tasks.push(task);
+  taskInput.value = "";
+  addBtn.disabled = true;
+
+  renderTasks();
+}
+
+// >>> Toggle Task Completion <<<
+function toggleTask(taskId) {
+  const task = tasks.find(t => t.id === taskId);
+  if (task) task.completed = !task.completed;
+  renderTasks();
+}
+
+// >>> Delete Task <<<
+function deleteTask(taskId) {
+  if (!confirm('Are you sure you want to delete this task?')) return;
+  tasks = tasks.filter(task => task.id !== taskId);
+  renderTasks();
+}
+
+// >>> Edit Task <<<
+function editTask(taskId) {
+  const task = tasks.find(t => t.id === taskId);
+  if (!task) return;
+
+  const li = document.querySelector(`li[data-id='${taskId}']`);
+  const taskContent = li.querySelector('.task-content');
+
+  taskContent.innerHTML = `
+    <input type="text" class="edit-input" value="${task.text}" />
+    <button class="btn save-btn">Save</button>
+    <button class="btn cancel-btn">Cancel</button>
+  `;
+
+  const input = taskContent.querySelector('.edit-input');
+  input.focus();
+
+  taskContent.querySelector('.save-btn').addEventListener('click', () => saveEdit(taskId, input.value.trim()));
+  input.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') saveEdit(taskId, input.value.trim());
+  });
+  taskContent.querySelector('.cancel-btn').addEventListener('click', renderTasks);
+}
+
+function saveEdit(taskId, newText) {
+  if (newText === '') return alert('Task cannot be empty');
+  const task = tasks.find(t => t.id === taskId);
+  if (task) task.text = newText;
+  renderTasks();
+}
+
+// >>> Render Task List <<<<
+function renderTasks() {
+  taskList.innerHTML = '';
+
+  let filteredTasks = tasks;
+  if (currentFilter === 'completed') {
+    filteredTasks = tasks.filter(task => task.completed);
+  } else if (currentFilter === 'pending') {
+    filteredTasks = tasks.filter(task => !task.completed);
+  }
+
+  if (filteredTasks.length === 0) {
+    emptyState.style.display = 'block';
+  } else {
+    emptyState.style.display = 'none';
+    filteredTasks.forEach(task => taskList.appendChild(createTaskElement(task)));
+  }
+
+  updateStats();
+}
+
+// >>> Create Single Task Element <<<
+function createTaskElement(task) {
+  const li = document.createElement('li');
+  li.className = `task-item ${task.completed ? 'completed' : ''}`;
+  li.dataset.id = task.id;
+
+  li.innerHTML = `
+    <div class="task-content">
+      <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''}>
+      <span class="task-text ${task.completed ? 'completed' : ''}">${task.text}</span>
+      <button class="btn edit-btn">Edit</button>
+      <button class="btn delete-btn">Delete</button>
+    </div>
+  `;
+
+  li.querySelector('.task-checkbox').addEventListener('change', () => toggleTask(task.id));
+  li.querySelector('.delete-btn').addEventListener('click', () => deleteTask(task.id));
+  li.querySelector('.edit-btn').addEventListener('click', () => editTask(task.id));
+
+  return li;
+}
+
+// >>> Update Task Stats <<<
+function updateStats() {
+  totalTaskElement.textContent = tasks.length;
+  completedTaskElement.textContent = tasks.filter(task => task.completed).length;
+  pendingTaskElement.textContent = tasks.filter(task => !task.completed).length;
+}
+
+// >>> Initialize App <<<
+function init() {
+  addBtn.disabled = true;
+  renderTasks();
+}
 
 
-///CLICK EVENT ON BUTTON
+// ===================== EVENT LISTENERS =====================
 
-// addBtn.addEventListener('click', addTask());
-taskInput.addEventListener('keypress', function(e) {
-    if(e.key === 'Enter') {
-        addTask()
-    }
-})
-
-
-////iNPUT VALIDATION
-taskInput.addEventListener('input', function() {
-    const isEmpty = this.value.trim() === "";
-    addBtn.disabled = isEmpty;
+// Enable/Disable Add Button
+taskInput.addEventListener('input', function () {
+  addBtn.disabled = this.value.trim() === "";
 });
 
+// Add task on Enter key
+taskInput.addEventListener('keypress', function (e) {
+  if (e.key === 'Enter') addTask();
+});
 
-////FILTERING BUTTON AND REMOVING/ADDING ACTIVE STATE
+// Add task on Button Click
+addBtn.addEventListener('click', addTask);
+
+// Filter buttons
 filterButtons.forEach(btn => {
-    btn.addEventListener('click', function() {
-        filterButtons.forEach(b => b.classList.remove('active'));
-        this.classList.add('active')
-        currentFilter = this.dataset.filter;
-        renderTask()
-    })
-})
+  btn.addEventListener('click', function () {
+    filterButtons.forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    currentFilter = this.dataset.filter;
+    renderTasks();
+  });
+});
 
-
-
-///Adding Task 
-const addTask = () => {
-    const taskText = taskInput.value.trim();
-
-
-    if(taskText === '') {
-        alert('Please enter task');
-        return
-    };
-
-
-    ////create task object
-    const task = {
-        id: taskIdCounter++,
-        text: taskText,
-        completed: false,
-        createdAt: new Date()
-    }
-
-    ////Updating the Array with new task
-    tasks.push()
-
-    ///Clear input
-    taskInput.value = "",
-    addBtn.disable = true
-
-    ///update ui
-
-    renderTask()
-    // updateTask()
-
-}
-
-
-const toggleTask = (taskId) => {
-    const task = tasks.find(task => task.id === taskId)
-
-    if(task) {
-        task.completed = !taskCompleted;
-        renderTask()
-        // updateTask()
-    }
-}
-
-
-const deleteTask =(taskId) => {
-    if(confirm('Are you sure you want to delete this task?')) {
-        tasks = tasks.filter(task => task.id);
-
-        renderTask()
-        // updateTask()
-    }
-} 
-
-
-const renderTask = () => {
-    taskList.innerHTML = '';
-
-    let filteredTask = tasks;
-
-    if(currentFilter === 'completed') {
-        filteredTask = tasks.filter(task => task.completed)
-    } else if (currentFilter === 'pending') {
-        filteredTask = tasks.filter(t => !t.completed)
-    }
-
-
-    if(filteredTask.length === 0) {
-
-        emptyState.style.display = 'block'
-        return
-    } else {
-        emptyState.style.display = 'none'
-    }
-}
-
-
-
-const createTask = (task) => {
-    const li = document.createElement('li')
-
-    li.className = `task-item ${task.completed ? 'completed' : ''}`
-
-    li.setAttribute('data-data-id', task.id);
-
-
-    li.innerHTML = `
-        <div class="task-content">
-            <input type="checkbox" class="task-checkbox" ${task.completed ? checked : "" }
-                onChange="toggleTask${task.completed ? 'completed' : ""}">
-
-            <span class="task-text${task.completed ? 'completed' : ""}">${task.text}</span>
-            <button class="btn delete-btn" onClick="delete(${task.id})">
-                Delete
-            </button>
-        
-        
-        </div>
-    
-    `;
-
-    return li
-}
-
-
-const init = () => {
-    addBtn.disabled = true;
-    renderTask()
-    // updateTask()
-}
-
-init()
+// Initialize App
+init();
 
 
 
